@@ -7,7 +7,8 @@ from collections import defaultdict
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from cutter import cut_file, DEFAULT_CHUNK_DURATION, DEFAULT_THRESHOLD
 
-TOKEN = ''
+# use your bot token here
+TOKEN = open('token.txt').readline()
 
 chunk_configs = dict()
 threshold_configs = dict()
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 def start(update, context):
     chat_id = update.effective_chat.id
     msg = 'Olá, mande um áudio com muitas pausas que eu corto pra você. Se precisar de ajuda digite /help.'
-    context.bot.send_message(chat_id=chat_id, text=msg)
+    context.bot.send_message(chat_id=chat_id,text=msg)
 
 def help(update, context):
     chat_id = update.effective_chat.id
