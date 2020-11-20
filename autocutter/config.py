@@ -1,5 +1,7 @@
 import json
-import pathlib
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 
 with open('config.json') as file:
     config = json.load(file)
@@ -7,6 +9,9 @@ with open('config.json') as file:
 TOKEN = config['token']
 
 try:
-    DB_PATH = pathlib.Path(config['db_path'])
+    DB_PATH = Path(config['db_path'])
 except:
-    DB_PATH = pathlib.Path().cwd() / 'database.db'
+    DB_PATH = Path().cwd() / 'database.db'
+
+tempdir = TemporaryDirectory()
+TEMP_PATH = Path(tempdir.name)

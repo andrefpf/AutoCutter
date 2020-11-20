@@ -4,7 +4,6 @@ from telegram.ext import Updater
 from commands import HANDLERS
 from config import TOKEN
 
-
 logging.basicConfig()
 
 def main():

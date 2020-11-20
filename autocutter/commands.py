@@ -1,12 +1,15 @@
-import os
 import logging 
+from pathlib import Path
 from time import sleep
 from telegram.ext import CommandHandler, MessageHandler, Filters
 
-from cutter import cut_file, DEFAULT_CHUNK_DURATION, DEFAULT_THRESHOLD
+from config import TEMP_PATH, DB_PATH
+from database import DataBase
+from cutter import cut_file, VIDEO_FORMATS, AUDIO_FORMATS
 
-chunk_configs = dict()
-threshold_configs = dict()
+DEFAULT_THRESHOLD = 0.05
+DEFAULT_CHUNK_DURATION = 0.2
+DB = DataBase(DB_PATH)
 
 def start(update, context):
     chat = update.effective_chat
@@ -22,100 +25,103 @@ def help(update, context):
     chat.send_message('Brincadeira')
     chat.send_message(
         '/help - Mostrar essa mensagem (hur dur). \n'
-        '/chunk arg - Ajusta o intervalo mínimo de silêncio. \n'
-        '/threshold arg - Ajusta o volume mínimo para cortar. \n'
+        '/set_chunk arg - Ajusta o intervalo mínimo de silêncio. \n'
+        '/set_threshold arg - Ajusta o volume mínimo. \n'
+        '/get_chunk - Verifica o intervalo mínimo de silêncio atual. \n'
+        '/get_threshold - Verifica o volume mínimo atual. \n'
+        '/restart_configs - Restaura as definições padrão de volume e intervalo. \n'
     )
 
-def chunk(update, context):
+def set_chunk(update, context):
+    chat = update.effective_chat
+    message = update.effective_message
     try:
-        chat = update.effective_chat
         chunk_duration = float(context.args[0])
-        chunk_configs[chat.id] = chunk_duration  
-        update.message.reply_text(f'Intervalo mínimo de silêncio alterado para {chunk_duration}.')
-    except:
-        update.message.reply_text(
-            'Formato inválido.'
-           f'Para mudar o parâmetro Chunk escreva algo como "/chunk {DEFAULT_CHUNK_DURATION}".'
-        )
+        new_user = DB.find_user(chat.id) is None
+        if new_user:
+            DB.add_user(chat.id, chunk_duration, DEFAULT_THRESHOLD)
+        else:
+            DB.update_chunk(chat.id, chunk_duration)
+        message.reply_text(f'Intervalo mínimo de silêncio alterado para {chunk_duration}.')
+
+    except ValueError:
+        message.reply_text(f'Formato inválido. Para mudar o parâmetro Chunk escreva algo como "/set_chunk {DEFAULT_CHUNK_DURATION}".')
     
-def threshold(update, context):
+def set_threshold(update, context):
+    chat = update.effective_chat
+    message = update.effective_message
     try:
-        chat = update.effective_chat
         threshold = float(context.args[0])
-        threshold_configs[chat_id] = threshold
-        update.message.reply_text(f'Volume mínimo alterado para {threshold}')
-    except:
-        update.message.reply_text(
-            'Formato inválido.'
-           f'Para mudar o parâmetro Threshold escreva algo como "/threshold {DEFAULT_THRESHOLD}".'
-        )
+        new_user = DB.find_user(chat.id) is None
+        if new_user:
+            DB.add_user(chat.id, DEFAULT_CHUNK_DURATION, threshold)
+        else:
+            DB.update_threshold(chat.id, threshold)
+        message.reply_text(f'Volume mínimo alterado para {threshold}.')
+
+    except ValueError:
+        message.reply_text(f'Formato inválido. Para mudar o parâmetro Threshold escreva algo como "/set_theshold {DEFAULT_THRESHOLD}".')
+
+def restart_configs(update, context):
+    chat = update.effective_chat
+    DB.remove_user(chat.id)
+
+def get_chunk(update, context):
+    chat = update.effective_chat
+    user = DB.find_user(chat.id)
+    chunk = DEFAULT_CHUNK_DURATION if (user is None) else user[1]
+    chat.send_message(chunk)
+
+def get_threshold(update, context):
+    chat = update.effective_chatmessage
+    user = DB.find_user(chat.id)
+    threshold = DEFAULT_THRESHOLD if (user is None) else user[2]
+    chat.send_message(threshold)
     
-def voice(update, context):
-    chat_id = update.effective_chat.id
-    file_id = update.effective_message.voice.file_id
-    file_info = context.bot.get_file(file_id)
+def remove_silence(update, context):
+    chat = update.effective_chat
+    message = update.effective_message
+    data = message.voice or message.audio or message.video
+    file = data.get_file()
 
-    print((update.effective_message.audio))
+    input_ext = Path(file.file_path).suffix
 
-    original_file_path = 'movies/' + file_id + '.oga'
-    edited_file_path = 'movies/' + file_id + '_edited' + '.mp3'
+    if input_ext in AUDIO_FORMATS:
+        output_ext = '.mp3'
+    elif input_ext in VIDEO_FORMATS:
+        output_ext = '.mp4'
+    else:
+        raise OSError('File format not supported') 
+    
+    input_file_path = TEMP_PATH / (data.file_id + input_ext)
+    output_file_path = TEMP_PATH / (data.file_id + output_ext)
 
-    chunk_duration = chunk_configs[chat_id] if (chat_id in chunk_configs) else DEFAULT_CHUNK_DURATION
-    threshold = threshold_configs[chat_id] if (chat_id in threshold_configs) else DEFAULT_THRESHOLD
+    user = DB.find_user(chat.id)
+    _, chunk, threshold = user if (user is not None) else (None, DEFAULT_CHUNK_DURATION, DEFAULT_THRESHOLD)
+    
+    file.download(input_file_path.as_posix())
+    cut_file(input_file_path, output_file_path, chunk, threshold)
 
-    file_info.download(original_file_path)
-    cut_file(original_file_path, edited_file_path, chunk_duration, threshold)
+    if message.voice is not None:
+        chat.send_voice(open(output_file_path, 'rb'))
+    elif message.audio is not None:
+        chat.send_audio(open(output_file_path, 'rb'))
+    elif message.video is not None:
+        chat.send_video(open(output_file_path, 'rb'))
+    else:
+        raise OSError('File format not supported') 
 
-    context.bot.send_voice(chat_id=chat_id, voice=open(edited_file_path, 'rb'))
-
-    os.remove(original_file_path)
-    os.remove(edited_file_path)
-
-def audio(update, context):
-    chat_id = update.effective_chat.id
-    file_id = update.effective_message.audio.file_id
-    file_info = context.bot.get_file(file_id)
-
-    _, extension = os.path.splitext(file_info.file_path)
-    original_file_path = 'movies/' + file_id + extension
-    edited_file_path = 'movies/' + file_id + '_edited' + '.mp3'
-
-    chunk_duration = chunk_configs[chat_id] if (chat_id in chunk_configs) else DEFAULT_CHUNK_DURATION
-    threshold = threshold_configs[chat_id] if (chat_id in threshold_configs) else DEFAULT_THRESHOLD
-
-    file_info.download(original_file_path)
-    cut_file(original_file_path, edited_file_path, chunk_duration, threshold)
-
-    context.bot.send_audio(chat_id=chat_id, audio=open(edited_file_path, 'rb'), title='audio.mp3')
-    os.remove(original_file_path)
-    os.remove(edited_file_path)
-
-def video(update, context):
-    chat_id = update.effective_chat.id
-    file_id = update.effective_message.video.file_id
-    file_info = context.bot.get_file(file_id)
-
-    _, extension = os.path.splitext(file_info.file_path)
-    original_file_path = 'movies/' + file_id + extension
-    edited_file_path = 'movies/' + file_id + '_edited' + '.mp4'
-
-    chunk_duration = chunk_configs[chat_id] if (chat_id in chunk_configs) else DEFAULT_CHUNK_DURATION
-    threshold = threshold_configs[chat_id] if (chat_id in threshold_configs) else DEFAULT_THRESHOLD
-
-    file_info.download(original_file_path)
-    cut_file(original_file_path, edited_file_path, chunk_duration, threshold)
-
-    context.bot.send_video(chat_id=chat_id, video=open(edited_file_path, 'rb'))
-    os.remove(original_file_path)
-    os.remove(edited_file_path)
+    input_file_path.unlink()
+    output_file_path.unlink()
 
 
 HANDLERS = [
     CommandHandler('start', start),
     CommandHandler('help', help),
-    CommandHandler('chunk', chunk),
-    CommandHandler('threshold', threshold),
-    MessageHandler(Filters.voice, voice),
-    MessageHandler(Filters.audio, audio),
-    MessageHandler(Filters.video, video),
+    CommandHandler('set_chunk', set_chunk),
+    CommandHandler('set_threshold', set_threshold),
+    CommandHandler('get_chunk', get_chunk),
+    CommandHandler('get_threshold', get_threshold),
+    CommandHandler('restart_configs', restart_configs),
+    MessageHandler(Filters.voice | Filters.audio | Filters.video, remove_silence),
 ]
