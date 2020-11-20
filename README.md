@@ -16,8 +16,9 @@ Mais uma versão do [jumpcutter](https://github.com/carykh/jumpcutter), só que 
     }
     ```
 - "token" é o token do seu bot gerado pelo [@BotFather](https://telegram.me/BotFather) do telegram.
-- "db_path" não é obrigatório, mas trata-se de um diretório de sua escolha para a criação do banco de dados que será usado.
-  para armazenar as configurações de cada usuário.
+- "db_path" trata-se de um diretório de sua escolha para a criação do banco de dados que será usado
+  para armazenar as configurações de cada usuário. Se nada for especificado vai ser criado um arquivo 
+  na raiz do projeto chamado ```database.db```.
 - para iniciar o bot basta usar o comando ```python autocutter/``` dentro da pasta.
 
 ## Utilizando
