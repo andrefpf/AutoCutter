@@ -49,12 +49,12 @@ def cut_file(input_file, output_file, chunk_duration, threshold):
     if input_file.suffix in VIDEO_FORMATS:
         original = VideoFileClip(str(input_file))
         eddited = cut_video_silence(original, chunk_duration, threshold)
-        eddited.write_videofile(output_file, logger=None)
+        eddited.write_videofile(str(output_file), logger=None)
 
     elif input_file.suffix in AUDIO_FORMATS:
         original = AudioFileClip(str(input_file))
         eddited = cut_audio_silence(original, chunk_duration, threshold)
-        eddited.write_audiofile(output_file, logger=None)
+        eddited.write_audiofile(str(output_file), logger=None)
         
     else:
         raise OSError('File format not supported') 

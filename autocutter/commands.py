@@ -13,7 +13,6 @@ DB = DataBase(DB_PATH)
 
 def start(update, context):
     chat = update.effective_chat
-    print(chat.id)
     chat.send_message(
         'Olá, mande um áudio com muitas pausas que eu corto pra você. Se precisar de ajuda digite /help.'
     )
@@ -95,12 +94,12 @@ def remove_silence(update, context):
         raise OSError('File format not supported') 
     
     input_file_path = TEMP_PATH / (data.file_id + input_ext)
-    output_file_path = TEMP_PATH / (data.file_id + output_ext)
+    output_file_path = TEMP_PATH / (data.file_id + '_edited' + output_ext)
 
     user = DB.find_user(chat.id)
     _, chunk, threshold = user if (user is not None) else (None, DEFAULT_CHUNK_DURATION, DEFAULT_THRESHOLD)
     
-    file.download(input_file_path.as_posix())
+    file.download(str(input_file_path))
     cut_file(input_file_path, output_file_path, chunk, threshold)
 
     if message.voice is not None:
