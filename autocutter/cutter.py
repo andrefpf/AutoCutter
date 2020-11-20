@@ -64,10 +64,3 @@ def cut_file(input_file, output_file, chunk_duration=DEFAULT_CHUNK_DURATION, thr
         eddited.write_audiofile(output_file, logger=None)
     else:
         raise OSError('File format not supported') 
-
-
-if __name__ == '__main__':
-    start = time()
-    cut_file('teste.oga', 'edited.mp3')
-    end = time()
-    print(end-start)

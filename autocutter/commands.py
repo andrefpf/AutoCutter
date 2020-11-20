@@ -1,72 +1,61 @@
 import os
 import logging 
-
 from time import sleep
-from collections import defaultdict
+from telegram.ext import CommandHandler, MessageHandler, Filters
 
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from cutter import cut_file, DEFAULT_CHUNK_DURATION, DEFAULT_THRESHOLD
-
-# use your bot token here
-TOKEN = open('token.txt').readline()
 
 chunk_configs = dict()
 threshold_configs = dict()
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
-
-logger = logging.getLogger(__name__)
-
-
 def start(update, context):
-    chat_id = update.effective_chat.id
-    msg = 'Olá, mande um áudio com muitas pausas que eu corto pra você. Se precisar de ajuda digite /help.'
-    context.bot.send_message(chat_id=chat_id,text=msg)
+    chat = update.effective_chat
+    print(chat.id)
+    chat.send_message(
+        'Olá, mande um áudio com muitas pausas que eu corto pra você. Se precisar de ajuda digite /help.'
+    )
 
 def help(update, context):
-    chat_id = update.effective_chat.id
-
-    msg = 'Ajuda é pra otário'
-    context.bot.send_message(chat_id=chat_id, text=msg)
-
+    chat = update.effective_chat
+    chat.send_message('Ajuda é pra otário')
     sleep(1)
-
-    msg = 'Brincadeira'
-    context.bot.send_message(chat_id=chat_id, text=msg)
-
-    msg = '/help - Mostrar essa mensagem (hur dur). \n'
-    msg += '/chunk arg - Ajusta o intervalo mínimo de silêncio. \n'
-    msg += '/threshold arg - Ajusta o volume mínimo para cortar. \n'
-    context.bot.send_message(chat_id=chat_id, text=msg)
+    chat.send_message('Brincadeira')
+    chat.send_message(
+        '/help - Mostrar essa mensagem (hur dur). \n'
+        '/chunk arg - Ajusta o intervalo mínimo de silêncio. \n'
+        '/threshold arg - Ajusta o volume mínimo para cortar. \n'
+    )
 
 def chunk(update, context):
     try:
-        chat_id = update.effective_chat.id
+        chat = update.effective_chat
         chunk_duration = float(context.args[0])
-        chunk_configs[chat_id] = chunk_duration  
-        msg = f'Intervalo mínimo de silêncio alterado para {chunk_duration}.'
-        update.message.reply_text(msg)
+        chunk_configs[chat.id] = chunk_duration  
+        update.message.reply_text(f'Intervalo mínimo de silêncio alterado para {chunk_duration}.')
     except:
-        msg = f'Formato inválido. Para mudar o parâmetro Chunk escreva algo como "/chunk {DEFAULT_CHUNK_DURATION}".'
-        update.message.reply_text(msg)
+        update.message.reply_text(
+            'Formato inválido.'
+           f'Para mudar o parâmetro Chunk escreva algo como "/chunk {DEFAULT_CHUNK_DURATION}".'
+        )
     
 def threshold(update, context):
     try:
-        chat_id = update.effective_chat.id
+        chat = update.effective_chat
         threshold = float(context.args[0])
-        threshold_configs[chat_id] = threshold  
-        msg = f'Volume mínimo alterado para {threshold}'
-        update.message.reply_text(msg)
-        print(msg, '\n')
+        threshold_configs[chat_id] = threshold
+        update.message.reply_text(f'Volume mínimo alterado para {threshold}')
     except:
-        msg = f'Formato inválido. Para mudar o parâmetro Threshold escreva algo como "/threshold {DEFAULT_THRESHOLD}".'
-        update.message.reply_text(msg)
+        update.message.reply_text(
+            'Formato inválido.'
+           f'Para mudar o parâmetro Threshold escreva algo como "/threshold {DEFAULT_THRESHOLD}".'
+        )
     
 def voice(update, context):
     chat_id = update.effective_chat.id
     file_id = update.effective_message.voice.file_id
     file_info = context.bot.get_file(file_id)
+
+    print((update.effective_message.audio))
 
     original_file_path = 'movies/' + file_id + '.oga'
     edited_file_path = 'movies/' + file_id + '_edited' + '.mp3'
@@ -121,23 +110,12 @@ def video(update, context):
     os.remove(edited_file_path)
 
 
-def main():
-    updater = Updater(TOKEN)
-
-    dp = updater.dispatcher
-
-    dp.add_handler(CommandHandler('start', start))
-    dp.add_handler(CommandHandler('help', help))
-    dp.add_handler(CommandHandler('chunk', chunk))
-    dp.add_handler(CommandHandler('threshold', threshold))
-
-    dp.add_handler(MessageHandler(Filters.voice, voice))
-    dp.add_handler(MessageHandler(Filters.audio, audio))
-    dp.add_handler(MessageHandler(Filters.video, video))
-
-    updater.start_polling()
-    updater.idle()
-
-
-if __name__ == '__main__':
-    main()
+HANDLERS = [
+    CommandHandler('start', start),
+    CommandHandler('help', help),
+    CommandHandler('chunk', chunk),
+    CommandHandler('threshold', threshold),
+    MessageHandler(Filters.voice, voice),
+    MessageHandler(Filters.audio, audio),
+    MessageHandler(Filters.video, video),
+]
