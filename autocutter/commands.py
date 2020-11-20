@@ -65,6 +65,7 @@ def set_threshold(update, context):
 def restart_configs(update, context):
     chat = update.effective_chat
     DB.remove_user(chat.id)
+    chat.send_message('Configurações restauradas')
 
 def get_chunk(update, context):
     chat = update.effective_chat
@@ -73,7 +74,7 @@ def get_chunk(update, context):
     chat.send_message(chunk)
 
 def get_threshold(update, context):
-    chat = update.effective_chatmessage
+    chat = update.effective_chat
     user = DB.find_user(chat.id)
     threshold = DEFAULT_THRESHOLD if (user is None) else user[2]
     chat.send_message(threshold)
