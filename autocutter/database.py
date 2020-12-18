@@ -9,8 +9,9 @@ class DataBase:
     def create_table(self):
         if self.table_exists('users'):
             return 
-        c = self.conn.cursor()
-        c.execute("CREATE TABLE users (id integer, chunk_duration real, threshold real)")
+        with sqlite3.connect(self.path) as conn:
+            c = conn.cursor()
+            c.execute("CREATE TABLE users (id integer, chunk_duration real, threshold real)")
 
     def table_exists(self, name):
         with sqlite3.connect(self.path) as conn:
